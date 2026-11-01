@@ -1,0 +1,8 @@
+Manifest.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+/docs/build/
+CLAUDE.md
+.claude/
+deps/earth/libearth.so
