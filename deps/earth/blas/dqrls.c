@@ -105,9 +105,9 @@ doublereal *qraux, *work;
         rsd_offset, qty_dim1, qty_offset, i__1, i__2;
 
     /* Local variables */
-    static integer info, i, j;
+    integer info, i, j;
     extern /* Subroutine */ int dqrsl_(), dqrdc2_();
-    static integer jj, kk;
+    integer jj, kk;
 
 
 /*     internal variables. */

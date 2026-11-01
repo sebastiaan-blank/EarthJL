@@ -74,12 +74,12 @@ integer *job, *info;
     integer t_dim1, t_offset, i__1, i__2;
 
     /* Local variables */
-    static integer case_;
+    integer case_;
     extern doublereal ddot_();
-    static doublereal temp;
-    static integer j;
+    doublereal temp;
+    integer j;
     extern /* Subroutine */ int daxpy_();
-    static integer jj;
+    integer jj;
 
 
 /*     internal variables */

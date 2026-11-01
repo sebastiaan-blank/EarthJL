@@ -160,16 +160,16 @@ integer *job, *info;
 
     /* Local variables */
     extern doublereal ddot_();
-    static doublereal temp;
-    static logical cqty;
-    static integer i, j;
-    static doublereal t;
+    doublereal temp;
+    logical cqty;
+    integer i, j;
+    doublereal t;
     extern /* Subroutine */ int dcopy_(), daxpy_();
-    static logical cb;
-    static integer jj;
-    static logical cr;
-    static integer ju, kp1;
-    static logical cxb, cqy;
+    logical cb;
+    integer jj;
+    logical cr;
+    integer ju, kp1;
+    logical cxb, cqy;
 
 
 /*     internal variables */

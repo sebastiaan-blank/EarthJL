@@ -108,12 +108,12 @@ doublereal *work;
 
     /* Local variables */
     extern doublereal ddot_(), dnrm2_();
-    static integer i, j, l;
-    static doublereal t;
+    integer i, j, l;
+    doublereal t;
     extern /* Subroutine */ int dscal_(), daxpy_();
-    static doublereal nrmxl, tt;
-    static integer lp1, lup;
-    static doublereal ttt;
+    doublereal nrmxl, tt;
+    integer lp1, lup;
+    doublereal ttt;
 
 
 /*     internal variables */
