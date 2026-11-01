@@ -505,7 +505,7 @@ static int GetNextParent(   // returns -1 if no more parents
 // but is defined here to minimize R dependencies.
 // Informal tests show that this is faster than rsort_with_index().
 
-static const double *pxGlobal;
+static __thread const double *pxGlobal;
 
 static int Compare(const void *p1, const void *p2)  // for qsort
 {
