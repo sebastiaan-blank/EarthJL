@@ -478,7 +478,7 @@ static int GetNextParent(   // returns -1 if no more parents
     const bool InitFlag,    // use true to init, thereafter false
     const int  nFastK)
 {
-    static int iQ;          // index into sorted queue
+    static __thread int iQ;          // index into sorted queue
     int iParent = -1;
     if (InitFlag) {
         if (TraceGlobal == 6)
