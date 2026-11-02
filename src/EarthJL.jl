@@ -29,6 +29,8 @@ struct EarthLearner
     fast_k    :: Int
     pmethod   :: Symbol     # :cv or :gcv
     nfolds    :: Int
+    nprune    :: Int        # max basis terms in GLMNet solution; 0 = no limit (→ dfmax)
+    ncross    :: Int        # CV repetitions for stable lambda selection; 1 = standard
     name      :: String
 end
 
@@ -167,6 +169,28 @@ function _earth_basis(X::Matrix{Float64}, active_set::Vector{Bool},
 end
 
 # ------------------------------------------------------------------
+# GLMNet CV with optional nprune (dfmax) and ncross (CV repetitions)
+# ------------------------------------------------------------------
+
+function _glmnetcv_ncross(B, Yarg, dist;
+                          nfolds::Int, nprune::Int, ncross::Int, rng)
+    dfmax = nprune > 0 ? nprune : size(B, 2)
+    kw = (alpha = 1.0, nfolds = nfolds, dfmax = dfmax, rng = rng)
+
+    cv1 = GLMNet.glmnetcv(B, Yarg, dist; kw...)
+    ncross == 1 && return cv1.path, argmin(cv1.meanloss)
+
+    # Subsequent runs on the same lambda grid; average meanloss for stability
+    total_loss = copy(cv1.meanloss)
+    λ = cv1.path.lambda
+    for _ in 2:ncross
+        cv_k = GLMNet.glmnetcv(B, Yarg, dist; kw..., lambda = λ)
+        total_loss .+= cv_k.meanloss
+    end
+    cv1.path, argmin(total_loss)
+end
+
+# ------------------------------------------------------------------
 # fit / predict
 # ------------------------------------------------------------------
 
@@ -196,18 +220,18 @@ function fit(l::EarthLearner, Y, X, family::Symbol, rng)
                         _MeanFallback(mean(Yf)), family)
     end
 
-    # Phase 2: GLMNet CV on basis
+    # Phase 2: GLMNet CV on basis (with optional nprune / ncross)
     GC.gc(false)
-    cv = if family == :binomial
-        GLMNet.glmnetcv(B, hcat(1.0 .- Yf, Yf), GLMNet.Binomial();
-                        alpha = 1.0, nfolds = l.nfolds)
-    else
-        GLMNet.glmnetcv(B, Yf; alpha = 1.0, nfolds = l.nfolds)
-    end
-    lam_idx = argmin(cv.meanloss)
+    Yarg = family == :binomial ? hcat(1.0 .- Yf, Yf) : Yf
+    dist  = family == :binomial ? GLMNet.Binomial() : GLMNet.Normal()
+    path, lam_idx = _glmnetcv_ncross(B, Yarg, dist;
+                                     nfolds = l.nfolds,
+                                     nprune = l.nprune,
+                                     ncross = l.ncross,
+                                     rng    = rng)
 
     EarthFit(active_set, dirs_mat, cuts_mat, max_terms, nPreds,
-             _GLMNetResult(cv.path, lam_idx), family)
+             _GLMNetResult(path, lam_idx), family)
 end
 
 """
@@ -230,11 +254,14 @@ end
 # ------------------------------------------------------------------
 
 """
-    sl_earth(; degree=4, nk=600, penalty=2.0, pmethod=:cv, nfolds=5, name=nothing)
+    sl_earth(; degree=4, nk=600, penalty=2.0, pmethod=:cv, nfolds=5,
+               nprune=0, ncross=1, name=nothing)
 
 MARS learner via standalone earth C library + Julia GLMNet. Thread-safe.
 `pmethod=:cv`  — GLMNet CV selects basis terms (recommended for binary outcomes).
 `pmethod=:gcv` — Earth GCV backward pass, then GLMNet CV on pruned basis.
+`nprune`       — max basis terms in the lasso solution (0 = no limit; maps to GLMNet dfmax).
+`ncross`       — CV repetitions for stable lambda selection (1 = standard single CV).
 """
 function sl_earth(;
     degree  = 4,
@@ -244,10 +271,12 @@ function sl_earth(;
     fast_k  = 20,
     pmethod = :cv,
     nfolds  = 5,
+    nprune  = 0,
+    ncross  = 1,
     name    = nothing
 )
     nm = isnothing(name) ? "earth_d$(degree)_nk$(nk)_$(pmethod)" : name
-    EarthLearner(degree, nk, penalty, thresh, fast_k, pmethod, nfolds, nm)
+    EarthLearner(degree, nk, penalty, thresh, fast_k, pmethod, nfolds, nprune, ncross, nm)
 end
 
 const sl_earth_d4      = sl_earth(degree=4, nk=600, name="earth_d4_nk600")
