@@ -8,7 +8,7 @@ const _libearth = joinpath(@__DIR__, "..", "deps", "earth", "libearth.so")
 # ==================================================================
 # EarthJL — MARS via standalone earth C library + Julia GLMNet
 #
-# Wraps Stephen Milborrow's standalone earth C library (GPL-2+).
+# Wraps Stephen Milborrow's earth 5.3.6 C library (GPL-2+).
 # Forward pass in C; term selection and coefficient fitting via
 # Julia GLMNet (lasso CV), which is binomial-aware.
 #
@@ -17,7 +17,8 @@ const _libearth = joinpath(@__DIR__, "..", "deps", "earth", "libearth.so")
 # pmethod = :gcv  — Earth GCV backward pass selects terms, then
 #                   GLMNet CV fits on that basis.
 #
-# Thread-safe: all mutable C globals patched to __thread TLS.
+# Thread-safe: all 29 mutable C globals patched to __thread TLS.
+# ABI: bool is _Bool (1 byte) from <stdbool.h> → UInt8 in Julia.
 # ==================================================================
 
 struct EarthLearner
@@ -62,8 +63,9 @@ function _earth_call(x::Matrix{Float64}, y::Vector{Float64},
 
     best_gcv    = Ref{Float64}(0.0)
     n_terms_out = Ref{Int32}(0)
-    # earth.c defines bool as typedef int (4 bytes) on non-MSVC paths
-    best_set    = zeros(Int32,   max_terms)
+    term_cond   = Ref{Int32}(0)                          # out: termination reason
+    # earth.c 5.3.6 uses <stdbool.h> → bool is _Bool (1 byte): UInt8 arrays.
+    best_set    = zeros(UInt8,   max_terms)
     bx          = zeros(Float64, nCases * max_terms)
     dirs        = zeros(Int32,   max_terms * nPreds)
     cuts        = zeros(Float64, max_terms * nPreds)
@@ -72,27 +74,32 @@ function _earth_call(x::Matrix{Float64}, y::Vector{Float64},
     lin_preds   = zeros(Int32,   nPreds)
 
     ccall((:Earth, _libearth), Cvoid,
-        (Ptr{Float64}, Ptr{Int32},
-         Ptr{Int32},   Ptr{Float64},
-         Ptr{Int32},   Ptr{Float64},
-         Ptr{Float64}, Ptr{Float64},
-         Ptr{Float64}, Ptr{Float64},
-         Ptr{Cvoid},
-         Int32, Int32, Int32,
-         Int32, Int32,
-         Float64, Float64,
-         Int32, Int32,
-         Int32, Float64, Float64,
-         Ptr{Int32}, Int32, Float64, Ptr{Cvoid}),
-        best_gcv, n_terms_out,
+        (Ptr{Float64}, Ptr{Int32}, Ptr{Int32},            # pBestGcv, pnTerms, piTermCond
+         Ptr{UInt8},   Ptr{Float64},                      # BestSet, bx
+         Ptr{Int32},   Ptr{Float64},                      # Dirs, Cuts
+         Ptr{Float64}, Ptr{Float64},                      # Residuals, Betas
+         Ptr{Float64}, Ptr{Float64}, Ptr{Cvoid},          # x, y, WeightsArg
+         Csize_t, Int32, Int32,                           # nCases (size_t), nResp, nPreds
+         Int32, Int32,                                    # nMaxDegree, nMaxTerms
+         Float64, Float64,                                # Penalty, Thresh
+         Int32, Int32,                                    # nMinSpan, nEndSpan
+         UInt8,                                           # Prune
+         Int32, Float64, Float64,                         # nFastK, FastBeta, NewVarPenalty
+         Ptr{Int32},                                      # LinPreds
+         Float64, UInt8,                                  # AdjustEndSpan, AutoLinPreds
+         UInt8, Int32, Float64, Ptr{Cvoid}),              # UseBetaCache, nThreads, Trace, sPredNames
+        best_gcv, n_terms_out, term_cond,
         best_set, bx, dirs, cuts, residuals, betas,
         x, y, C_NULL,
-        Int32(nCases), Int32(1), Int32(nPreds),
+        Csize_t(nCases), Int32(1), Int32(nPreds),
         Int32(max_degree), Int32(max_terms),
         penalty, thresh,
-        Int32(0), Int32(prune),
+        Int32(0), Int32(0),                               # nMinSpan, nEndSpan (0 = auto)
+        UInt8(prune),
         Int32(fast_k), Float64(0.0), Float64(0.0),
-        lin_preds, Int32(1), Float64(0.0), C_NULL)
+        lin_preds,
+        Float64(2.0), UInt8(1),                           # AdjustEndSpan, AutoLinPreds (R defaults)
+        UInt8(1), Int32(1), Float64(0.0), C_NULL)         # UseBetaCache=1, nThreads=1 (reserved), Trace=0
 
     n_terms  = Int(n_terms_out[])
     bx_mat   = reshape(bx,   nCases,    max_terms)

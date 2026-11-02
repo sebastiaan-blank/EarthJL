@@ -8,5 +8,10 @@ RSRC    = R/dqrdc2.c
 libearth.so: earth.c $(LINPACK) $(RSRC)
 	$(CC) $(CFLAGS) -shared -o $@ $^ -l:libopenblas.so.0
 
+# Canary build: wraps every malloc1/calloc1/free1 with overflow guards.
+# Aborts immediately with the buffer name when any allocation is overrun.
+libearth_canary.so: earth.c $(LINPACK) $(RSRC)
+	$(CC) $(CFLAGS) -DCANARY_CHECK -shared -o $@ $^ -l:libopenblas.so.0
+
 clean:
-	rm -f libearth.so
+	rm -f libearth.so libearth_canary.so
