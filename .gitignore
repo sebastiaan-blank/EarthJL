@@ -5,4 +5,17 @@ Manifest.toml
 /docs/build/
 CLAUDE.md
 .claude/
-deps/earth/libearth.so
+
+# Compiled C library (must be built locally)
+deps/earth/libearth*.so
+
+# Compiled test binaries (built manually from test_*.c)
+deps/earth/test_thread
+deps/earth/test_thread_t1
+deps/earth/test_thread_canary
+deps/earth/test_thread_large_prod
+deps/earth/test_thread_large_canary
+deps/earth/test_asan_noblas
+deps/earth/test_asan_noblas2
+deps/earth/test_tsan
+deps/earth/test_tsan_noblas
