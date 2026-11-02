@@ -29,7 +29,7 @@ struct EarthLearner
     fast_k    :: Int
     pmethod   :: Symbol     # :cv or :gcv
     nfolds    :: Int
-    nprune    :: Int        # max basis terms in GLMNet solution; 0 = no limit (→ dfmax)
+    nprune    :: Union{Int,Nothing}  # max basis terms in GLMNet solution; nothing = no limit (→ dfmax)
     ncross    :: Int        # CV repetitions for stable lambda selection; 1 = standard
     name      :: String
 end
@@ -174,7 +174,7 @@ end
 
 function _glmnetcv_ncross(B, Yarg, dist;
                           nfolds::Int, nprune::Int, ncross::Int, rng)
-    dfmax = nprune > 0 ? nprune : size(B, 2)
+    dfmax = isnothing(nprune) ? size(B, 2) : nprune
     kw = (alpha = 1.0, nfolds = nfolds, dfmax = dfmax, rng = rng)
 
     cv1 = GLMNet.glmnetcv(B, Yarg, dist; kw...)
@@ -260,7 +260,7 @@ end
 MARS learner via standalone earth C library + Julia GLMNet. Thread-safe.
 `pmethod=:cv`  — GLMNet CV selects basis terms (recommended for binary outcomes).
 `pmethod=:gcv` — Earth GCV backward pass, then GLMNet CV on pruned basis.
-`nprune`       — max basis terms in the lasso solution (0 = no limit; maps to GLMNet dfmax).
+`nprune`       — max basis terms in the lasso solution (nothing = no limit; maps to GLMNet dfmax).
 `ncross`       — CV repetitions for stable lambda selection (1 = standard single CV).
 """
 function sl_earth(;
@@ -271,7 +271,7 @@ function sl_earth(;
     fast_k  = 20,
     pmethod = :cv,
     nfolds  = 5,
-    nprune  = 0,
+    nprune  = nothing,
     ncross  = 1,
     name    = nothing
 )
