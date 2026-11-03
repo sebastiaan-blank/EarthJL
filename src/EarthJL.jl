@@ -173,7 +173,7 @@ end
 # ------------------------------------------------------------------
 
 function _glmnetcv_ncross(B, Yarg, dist;
-                          nfolds::Int, nprune::Int, ncross::Int, rng)
+                          nfolds::Int, nprune::Union{Int,Nothing}, ncross::Int, rng)
     dfmax = isnothing(nprune) ? size(B, 2) : nprune
     kw = (alpha = 1.0, nfolds = nfolds, dfmax = dfmax, rng = rng)
 
